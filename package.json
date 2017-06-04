@@ -1,0 +1,33 @@
+{
+  "name": "js-zrim-mongo-manager",
+  "version": "0.1.18",
+  "description": "Contains the MongoDB manager",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm run unitTest",
+    "unitTest": "node node_modules/istanbul/lib/cli.js cover node_modules/jasmine/bin/jasmine.js JASMINE_CONFIG_PATH=test/unit/jasmine.config.json",
+    "unitTestWithoutCoverage": "jasmine JASMINE_CONFIG_PATH=test/unit/jasmine.config.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yogo95/js-zrim-mongo-manager.git"
+  },
+  "keywords": [
+    "zrim-everything",
+    "mongodb",
+    "library",
+    "utils"
+  ],
+  "author": "yogo95 (yogo95@zrim-everything.eu)",
+  "license": "CECILL-2.1",
+  "dependencies": {
+    "joi": "^10.5.0",
+    "js-zrim-core": "^0.1.18",
+    "lodash": "^4.17.4",
+    "mongojs": "^2.4.0"
+  },
+  "devDependencies": {
+    "istanbul": "^0.4.5",
+    "jasmine": "^2.6.0"
+  }
+}
