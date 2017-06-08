@@ -164,18 +164,18 @@ MongoDbManager.prototype._handleConnection = function () {
      * @param {Error} error The error
      * @private
      */
-    const _handleMongoDbGlobalError = error => {
+    const _handleMongoDbConnectionClosed = error => {
       if (this.currentState === MongoDbManager.States.Disconnecting) {
-        this.logger.debug("[%s][%s] rule=ignore -> States = Disconnecting", __pretty_name__, '_handleMongoDbGlobalError');
+        this.logger.debug("[%s][%s] rule=ignore -> States = Disconnecting", __pretty_name__, '_handleMongoDbConnectionClosed');
         return;
       }
-      this.logger.error("[%s][%s] Received error: %s\n%s", __pretty_name__, '_handleMongoDbGlobalError', error.toString(), error.stack, error);
+      this.logger.error("[%s][%s] Received error: %s\n%s", __pretty_name__, '_handleMongoDbConnectionClosed', error.toString(), error.stack, error);
       this._onConnectionLost()
         .then(() => {
-          this.logger.debug("[%s][%s] Connection lost handled", __pretty_name__, '_handleMongoDbGlobalError');
+          this.logger.debug("[%s][%s] Connection lost handled", __pretty_name__, '_handleMongoDbConnectionClosed');
         }, error => {
           this.logger.error("[%s][%s] Connection lost handled with error: %s\n%s",
-            __pretty_name__, '_handleMongoDbGlobalError', error.message, error.stack);
+            __pretty_name__, '_handleMongoDbConnectionClosed', error.message, error.stack);
         });
     };
 
@@ -185,7 +185,7 @@ MongoDbManager.prototype._handleConnection = function () {
      */
     const _handleReconnection = () => {
       if (this.currentState === MongoDbManager.States.Disconnecting) {
-        this.logger.debug("[%s][%s] rule=ignore -> States = Disconnecting", __pretty_name__, '_handleMongoDbGlobalError');
+        this.logger.debug("[%s][%s] rule=ignore -> States = Disconnecting", __pretty_name__, '_handleMongoDbConnectionClosed');
         return;
       }
 
@@ -207,9 +207,9 @@ MongoDbManager.prototype._handleConnection = function () {
     const _freePreviousContext = (context) => {
       if (_.isObjectLike(context)) {
         this.logger.debug("[%s][%s] Remove listeners", __pretty_name__, '_freePreviousContext');
-        context.mongoDbInstance.removeListener('error', context.handleErrorFunction);
-        context.mongoDbInstance.removeListener('connect', context.handleReconnection);
-        context.mongoDbInstance.removeListener('reconnect', context.handleReconnection);
+        context.mongoDataBase.removeListener('close', context.handleErrorFunction);
+        context.mongoDataBase.removeListener('connect', context.handleReconnection);
+        context.mongoDataBase.removeListener('reconnect', context.handleReconnection);
       }
     };
 
@@ -237,7 +237,7 @@ MongoDbManager.prototype._handleConnection = function () {
       this._handleConnection.Steps.connection,
       this._handleConnection.Steps.fetchCollections,
       this._handleConnection.Steps.initializeCollectionIndex,
-      // this._handleConnection.Steps.exportVariables
+      this._handleConnection.Steps.exportVariables
     ];
 
     this.logger.debug("[%s] Create tasks with context inside", __pretty_name__);
@@ -260,19 +260,20 @@ MongoDbManager.prototype._handleConnection = function () {
 
       // This will keep necessary information in case of connection last and manually connection
       const currentConnexionContext = {
-        handleErrorFunction: _handleMongoDbGlobalError,
+        handleErrorFunction: _handleMongoDbConnectionClosed,
         handleReconnection: _handleReconnection,
-        freeContext: _freePreviousContext.bind(this, currentConnexionContext),
+        freeContext: undefined,
         mongoClientInstance: this.properties.mongoClientInstance,
         mongoDataBase: this.properties.mongoDataBase
       };
+      currentConnexionContext.freeContext = _freePreviousContext.bind(this, currentConnexionContext);
 
       this.logger.debug("[%s][%s] Save the current connection context", __pretty_name__, '_handleTasksDone');
       this.properties.currentConnexionContext = currentConnexionContext;
 
       // Handle the disconnect error
       this.logger.debug("[%s][%s] Connect signal '%s'", __pretty_name__, '_handleTasksDone', 'close');
-      this.properties.mongoDataBase.on('close', _handleMongoDbGlobalError);
+      this.properties.mongoDataBase.on('error', _handleMongoDbConnectionClosed);
       // Handle reconnection
       this.logger.debug("[%s][%s] Connect signal '%s'", __pretty_name__, '_handleTasksDone', 'connect');
       this.properties.mongoDataBase.on('connect', _handleReconnection);
