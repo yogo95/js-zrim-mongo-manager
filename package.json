@@ -21,10 +21,11 @@
   "author": "yogo95 (yogo95@zrim-everything.eu)",
   "license": "CECILL-2.1",
   "dependencies": {
+    "async": "^2.4.1",
     "joi": "^10.5.0",
     "js-zrim-core": "^0.1.18",
     "lodash": "^4.17.4",
-    "mongojs": "^2.4.0"
+    "mongodb": "^2.2.28"
   },
   "devDependencies": {
     "istanbul": "^0.4.5",
