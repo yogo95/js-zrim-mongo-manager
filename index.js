@@ -624,15 +624,15 @@ MongoDbManager.prototype._handleConnection.Steps = {
     }
 
     const objProperties = {};
-    _.each(context.collections, function (collection) {
+    _.each(context.collections, function (collection, collectionName) {
       context.logger.debug("[%s][Step:%s] Export collection '%s'",
         __pretty_name__, __step_name__, collection);
 
-      objProperties[collection.name] = {
+      objProperties[collectionName] = {
         configurable: false,
         enumerable: true,
         set: _setCollection,
-        get: _createGetCollection(context.manager, collection.name) // By using a function we are able to override the getCollectionByName
+        get: _createGetCollection(context.manager, collectionName) // By using a function we are able to override the getCollectionByName
       };
     });
 
