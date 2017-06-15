@@ -39,8 +39,9 @@ describe("Unit Test - MongoDbManager", function () {
     it("Then must default value", function () {
       const instance = createInstance();
 
-      expect(instance.properties.mongoDbDriver).toBe(require('mongojs'));
+      expect(instance.properties.mongoDbDriver).toBe(require('mongodb').MongoClient);
       expect(instance.properties.connectionTimeoutMs).toEqual(2000);
+      expect(instance.properties.virtualCollections).toEqual({});
     });
   }); // #construct
 
@@ -98,10 +99,10 @@ describe("Unit Test - MongoDbManager", function () {
         it("Then must return internal property mongoDbCollections", function () {
           const instance = createInstance();
 
-          instance.properties.mongoDbCollections = {
+          instance.properties.virtualCollections = {
             a: 2
           };
-          expect(instance.collections).toBe(instance.properties.mongoDbCollections);
+          expect(instance.collections).toBe(instance.properties.virtualCollections);
         });
       }); // #get
     }); // #collections
@@ -111,10 +112,10 @@ describe("Unit Test - MongoDbManager", function () {
         it("Then must return internal property mongoDbInstance", function () {
           const instance = createInstance();
 
-          instance.properties.mongoDbInstance = {
+          instance.properties.mongoDataBase = {
             a: 2
           };
-          expect(instance.nativeInstance).toBe(instance.properties.mongoDbInstance);
+          expect(instance.nativeInstance).toBe(instance.properties.mongoDataBase);
         });
       }); // #get
     }); // #nativeInstance
@@ -132,21 +133,22 @@ describe("Unit Test - MongoDbManager", function () {
     it("Given valid name but not found Then must return undefined", function () {
       const instance = createInstance();
 
+      instance.properties.virtualCollections = undefined;
       expect(instance.getCollectionByName("a")).toBeUndefined();
 
-      instance.properties.mongoDbCollections = {};
+      instance.properties.virtualCollections = {};
       expect(instance.getCollectionByName("a")).toBeUndefined();
     });
 
     it("Given valid name and exists Then must return expected collection", function () {
       const instance = createInstance();
 
-      instance.properties.mongoDbCollections = {
+      instance.properties.virtualCollections = {
         a: {
           a: 1
         }
       };
-      expect(instance.getCollectionByName("a")).toBe(instance.properties.mongoDbCollections.a);
+      expect(instance.getCollectionByName("a")).toBe(instance.properties.virtualCollections.a);
     });
   }); // #getCollectionByName
 
@@ -194,18 +196,46 @@ describe("Unit Test - MongoDbManager", function () {
         });
     });
 
+    it("Given invalid connectionTimeoutMs Then must return error", function (testDone) {
+      const instance = createInstance();
+
+      spyOn(Joi, 'validate').and.callThrough();
+      const options = {
+        connectionTimeoutMs: 1,
+        connectionString: "12",
+        collections: [{
+          name: "aa",
+          index: []
+        }]
+      };
+      instance._handleInitialization(options)
+        .then(() => {
+          expect("Must not be called").toBeUndefined();
+          testDone();
+        })
+        .catch(error => {
+          expect(error).toEqual(jasmine.any(TypeError));
+          expect(Joi.validate).toHaveBeenCalledWith(options, jasmine.any(Object), jasmine.any(Function));
+          testDone();
+        });
+    });
+
     it("Given valid options Then must return success", function (testDone) {
       const instance = createInstance();
 
       spyOn(Joi, 'validate').and.callThrough();
       const options = {
+        connectionTimeoutMs: 999999,
         connectionString: "12",
         collections: [{
           name: "aa",
           index: [
             {
               native: {
-                keys: ["a", "b"],
+                keys: {
+                  a: 1,
+                  b: 2
+                },
                 options: {
                   a: 3
                 }
@@ -220,6 +250,7 @@ describe("Unit Test - MongoDbManager", function () {
           expect(instance.properties.mongoDbOptions.connectionString).toEqual(options.connectionString);
           expect(instance.properties.mongoDbOptions.collections).toEqual(options.collections);
           expect(instance.properties.mongoDbOptions.collections).not.toBe(options.collections);
+          expect(instance.properties.connectionTimeoutMs).toEqual(999999);
           testDone();
         })
         .catch(error => {
@@ -264,6 +295,75 @@ describe("Unit Test - MongoDbManager", function () {
   }); // #_handlePostConnection
 
   describe("#_handleDisconnection", function () {
+    it("Given mongoDataBase.close to fail Then return error", function (testDone) {
+      const instance = createInstance();
 
+      const expectedError = new Error("Unit Test - Fake Error");
+      instance.properties.mongoDataBase = {
+        close: jasmine.createSpy("close").and.callFake(() => new Promise((resolve, reject) => setImmediate(reject, expectedError)))
+      };
+
+      instance._handleDisconnection()
+        .then(() => {
+          expect("Must not be called").toBeUndefined();
+          testDone();
+        })
+        .catch(error => {
+          expect(error).toBe(expectedError);
+          expect(instance.properties.mongoDataBase.close).toHaveBeenCalled();
+          testDone();
+        });
+    });
+
+    it("Given close succeed and currentConnexionContext undefined Then must success", function (testDone) {
+      const instance = createInstance();
+
+      const closeMock = jasmine.createSpy("close").and.callFake(() => new Promise(resolve => setImmediate(resolve)));
+      instance.properties.mongoDataBase = {
+        close: closeMock
+      };
+      instance.properties.mongoClientInstance = {};
+
+      instance._handleDisconnection()
+        .then(() => {
+          expect(closeMock).toHaveBeenCalled();
+          expect(instance.properties.mongoDataBase).toBeUndefined();
+          expect(instance.properties.mongoClientInstance).toBeUndefined();
+          testDone();
+        })
+        .catch(error => {
+          expect("Must not be called").toBeUndefined();
+          expect(error).toBeUndefined();
+          testDone();
+        });
+    });
+
+    it("Given close succeed and currentConnexionContext defined Then must success and release resources", function (testDone) {
+      const instance = createInstance();
+
+      const closeMock = jasmine.createSpy("close").and.callFake(() => new Promise(resolve => setImmediate(resolve)));
+      instance.properties.mongoDataBase = {
+        close: closeMock
+      };
+      instance.properties.mongoClientInstance = {};
+      const currentConnexionContext = {
+        freeContext: jasmine.createSpy("freeContext")
+      };
+      instance.properties.currentConnexionContext = currentConnexionContext;
+
+      instance._handleDisconnection()
+        .then(() => {
+          expect(closeMock).toHaveBeenCalled();
+          expect(instance.properties.mongoDataBase).toBeUndefined();
+          expect(instance.properties.mongoClientInstance).toBeUndefined();
+          expect(currentConnexionContext.freeContext).toHaveBeenCalledTimes(1);
+          testDone();
+        })
+        .catch(error => {
+          expect("Must not be called").toBeUndefined();
+          expect(error).toBeUndefined();
+          testDone();
+        });
+    });
   }); // #_handleDisconnection
 });
