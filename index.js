@@ -74,7 +74,7 @@ MongoDbManager.prototype.getCollectionByName = function (collectionName) {
     return undefined;
   }
 
-  const collections = this.collections;
+  const collections = this.properties.mongoDbCollections;
   if (collections) {
     return collections[collectionName] || undefined;
   } else {

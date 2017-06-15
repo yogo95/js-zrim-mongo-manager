@@ -133,22 +133,22 @@ describe("Unit Test - MongoDbManager", function () {
     it("Given valid name but not found Then must return undefined", function () {
       const instance = createInstance();
 
-      instance.properties.virtualCollections = undefined;
+      instance.properties.mongoDbCollections = undefined;
       expect(instance.getCollectionByName("a")).toBeUndefined();
 
-      instance.properties.virtualCollections = {};
+      instance.properties.mongoDbCollections = {};
       expect(instance.getCollectionByName("a")).toBeUndefined();
     });
 
     it("Given valid name and exists Then must return expected collection", function () {
       const instance = createInstance();
 
-      instance.properties.virtualCollections = {
+      instance.properties.mongoDbCollections = {
         a: {
           a: 1
         }
       };
-      expect(instance.getCollectionByName("a")).toBe(instance.properties.virtualCollections.a);
+      expect(instance.getCollectionByName("a")).toBe(instance.properties.mongoDbCollections.a);
     });
   }); // #getCollectionByName
 
