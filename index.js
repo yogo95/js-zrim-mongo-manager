@@ -71,7 +71,12 @@ MongoDbManager.prototype.getCollectionByName = function (collectionName) {
     return undefined;
   }
 
-  return this.mongoDbCollections || this.mongoDbCollections[collectionName] || undefined;
+  const collections = this.collections;
+  if (collections) {
+    return collections[collectionName] || undefined;
+  } else {
+    return undefined;
+  }
 };
 
 const _handleInitializationOptionsSchema = Joi.object().keys({
