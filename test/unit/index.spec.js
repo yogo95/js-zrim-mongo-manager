@@ -366,4 +366,97 @@ describe("Unit Test - MongoDbManager", function () {
         });
     });
   }); // #_handleDisconnection
+
+  describe("_handleConnection.Steps", function () {
+    describe("#exportVariables", function () {
+      const exportVariables = MongoDbManager.prototype._handleConnection.Steps.exportVariables;
+
+      it("Given no collections Then must export expected value", function (testDone) {
+        const context = {
+          logger: new LoggerMock(),
+          manager: {
+            properties: {
+
+            }
+          },
+          collections: {}
+        };
+
+        exportVariables(context, function (error) {
+          expect(error).toBeUndefined();
+
+          expect(context.manager.properties.virtualCollections).toEqual({});
+          expect(context.manager.properties.mongoDbCollections).toBe(context.collections);
+          testDone();
+        });
+      });
+
+      it("Given collections Then must export expected value", function (testDone) {
+        const context = {
+          logger: new LoggerMock(),
+          manager: {
+            properties: {
+
+            },
+            getCollectionByName: jasmine.createSpy("getCollectionByName").and.callFake(name => {
+              return context.manager.properties.mongoDbCollections[name];
+            })
+          },
+          collections: {
+            ab: {
+              a: 1
+            },
+            cb: {
+              a: 2
+            }
+          }
+        };
+
+        exportVariables(context, function (error) {
+          expect(error).toBeUndefined();
+
+          expect(context.manager.properties.virtualCollections).toEqual(context.collections);
+          expect(context.manager.properties.mongoDbCollections).toBe(context.collections);
+          expect(context.manager.getCollectionByName).toHaveBeenCalledTimes(_.keys(context.collections).length);
+          _.each(context.collections, (value, key) => {
+            expect(context.manager.getCollectionByName).toHaveBeenCalledWith(key);
+          });
+          testDone();
+        });
+      });
+
+      it("Given collections When try to set collection Then must do nothing", function (testDone) {
+        const context = {
+          logger: new LoggerMock(),
+          manager: {
+            properties: {
+
+            },
+            getCollectionByName: jasmine.createSpy("getCollectionByName").and.callFake(name => {
+              return context.manager.properties.mongoDbCollections[name];
+            })
+          },
+          collections: {
+            ab: {
+              a: 1
+            }
+          }
+        };
+
+        exportVariables(context, function (error) {
+          expect(error).toBeUndefined();
+
+          expect(context.manager.properties.virtualCollections).toEqual(context.collections);
+          expect(context.manager.properties.mongoDbCollections).toBe(context.collections);
+          context.manager.properties.virtualCollections.ab = 12;
+          expect(context.manager.properties.virtualCollections).toEqual({
+            ab: {
+              a: 1
+            }
+          });
+          testDone();
+        });
+      });
+    }); // #exportVariables
+  }); // _handleConnection.Steps
 });
