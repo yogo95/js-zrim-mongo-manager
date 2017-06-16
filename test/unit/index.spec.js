@@ -368,6 +368,101 @@ describe("Unit Test - MongoDbManager", function () {
   }); // #_handleDisconnection
 
   describe("_handleConnection.Steps", function () {
+    describe("#fetchCollections", function () {
+      const fetchCollections = MongoDbManager.prototype._handleConnection.Steps.fetchCollections;
+
+      it("Given no collection Then must do nothing", function (testDone) {
+        const context = {
+          logger: new LoggerMock(),
+          mongoDbOptions: {},
+          collections: {},
+          mongoDataBase: {
+            collection: jasmine.createSpy("collection")
+          }
+        };
+
+        fetchCollections(context, function (error) {
+          expect(error).toBeUndefined();
+          expect(context.mongoDataBase.collection).not.toHaveBeenCalled();
+          testDone();
+        });
+      });
+
+      it("Given collection and mongo.collection fails Then must return error", function (testDone) {
+        const expectedError = new Error("Unit Test - Fake error");
+        const context = {
+          logger: new LoggerMock(),
+          mongoDbOptions: {
+            collections: [{
+              name: "ab"
+            }]
+          },
+          collections: {},
+          mongoDataBase: {
+            collection: jasmine.createSpy("collection").and.callFake((collectionName, options, cb) => {
+              expect(cb).toEqual(jasmine.any(Function));
+              if (_.isFunction(cb)) {
+                setImmediate(cb, expectedError);
+              } else {
+                testDone();
+              }
+            })
+          }
+        };
+
+        fetchCollections(context, function (error) {
+          expect(error).toBe(expectedError);
+          expect(context.mongoDataBase.collection).toHaveBeenCalledWith("ab", undefined, jasmine.any(Function));
+          expect(context.mongoDataBase.collection).toHaveBeenCalledTimes(1);
+          testDone();
+        });
+      });
+
+      it("Given collection and mongo.collection success Then must set expected value", function (testDone) {
+        const expectedCollections = {
+          ab: {
+            a: 1
+          },
+          cd: {
+            c: 2
+          }
+        };
+        const context = {
+          logger: new LoggerMock(),
+          mongoDbOptions: {
+            collections: [
+              {
+                name: "ab"
+              }, {
+                name: "cd"
+              }
+            ]
+          },
+          collections: {},
+          mongoDataBase: {
+            collection: jasmine.createSpy("collection").and.callFake((collectionName, options, cb) => {
+              expect(cb).toEqual(jasmine.any(Function));
+              if (_.isFunction(cb)) {
+                setImmediate(cb, undefined, expectedCollections[collectionName]);
+              } else {
+                testDone();
+              }
+            })
+          }
+        };
+
+        fetchCollections(context, function (error) {
+          expect(error).toBeUndefined();
+          expect(context.mongoDataBase.collection).toHaveBeenCalledTimes(context.mongoDbOptions.collections.length);
+          _.each(context.mongoDbOptions.collections, collection => {
+            expect(context.mongoDataBase.collection).toHaveBeenCalledWith(collection.name, undefined, jasmine.any(Function));
+          });
+          expect(context.collections).toEqual(expectedCollections);
+          testDone();
+        });
+      });
+    }); // #fetchCollections
+
     describe("#exportVariables", function () {
       const exportVariables = MongoDbManager.prototype._handleConnection.Steps.exportVariables;
 
@@ -375,9 +470,7 @@ describe("Unit Test - MongoDbManager", function () {
         const context = {
           logger: new LoggerMock(),
           manager: {
-            properties: {
-
-            }
+            properties: {}
           },
           collections: {}
         };
@@ -395,9 +488,7 @@ describe("Unit Test - MongoDbManager", function () {
         const context = {
           logger: new LoggerMock(),
           manager: {
-            properties: {
-
-            },
+            properties: {},
             getCollectionByName: jasmine.createSpy("getCollectionByName").and.callFake(name => {
               return context.manager.properties.mongoDbCollections[name];
             })
@@ -429,9 +520,7 @@ describe("Unit Test - MongoDbManager", function () {
         const context = {
           logger: new LoggerMock(),
           manager: {
-            properties: {
-
-            },
+            properties: {},
             getCollectionByName: jasmine.createSpy("getCollectionByName").and.callFake(name => {
               return context.manager.properties.mongoDbCollections[name];
             })
