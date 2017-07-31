@@ -547,7 +547,7 @@ MongoDbManager.prototype._handleConnection.Steps = {
     });
 
     if (collectionsWithIndex.length === 0) {
-      return;
+      return stepDone();
     }
 
     /**
